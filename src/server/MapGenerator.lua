@@ -23,13 +23,13 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local MapGenerator = {}
 
 local MAP_FOLDER_NAME = "MarsMap"
-local GROUND_SIZE = Vector3.new(400, 16, 400)
+local GROUND_SIZE = Vector3.new(800, 16, 800)
 local GROUND_COLOR = Color3.fromRGB(150, 70, 40)
-local ARENA_RADIUS = 160
-local BOULDER_COUNT = 40
-local MOUNTAIN_COUNT = 14
-local ALIEN_SPAWN_COUNT = 6
-local EGG_SPAWN_COUNT = 6
+local ARENA_RADIUS = 320
+local BOULDER_COUNT = 70
+local MOUNTAIN_COUNT = 20
+local ALIEN_SPAWN_COUNT = 8
+local EGG_SPAWN_COUNT = 8
 
 local function setupAtmosphere()
 	Lighting.Ambient = Color3.fromRGB(70, 45, 35)

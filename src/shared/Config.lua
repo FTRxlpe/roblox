@@ -39,6 +39,13 @@ Config.PvP = {
 	LootDespawnSeconds = 30,
 }
 
+-- Baseline unarmed attack every player can use for free. Shop weapons deal
+-- more damage / reach further than this, making them a genuine upgrade.
+Config.Combat = {
+	UnarmedDamage = 8,
+	UnarmedRange = 8,
+}
+
 Config.Shop = {
 	Items = {
 		{ Id = "BasicBlaster", Name = "Basic Blaster", Type = "Weapon", Price = 50, ToolName = "BasicBlaster", Damage = 15, Range = 40 },
