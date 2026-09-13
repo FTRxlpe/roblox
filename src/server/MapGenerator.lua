@@ -27,20 +27,35 @@ local GROUND_SIZE = Vector3.new(800, 16, 800)
 local GROUND_COLOR = Color3.fromRGB(150, 70, 40)
 local ARENA_RADIUS = 320
 local BOULDER_COUNT = 70
-local CRATER_COUNT = 14
+local CRATER_COUNT = 22
 local MOUNTAIN_COUNT = 20
 local ALIEN_SPAWN_COUNT = 8
 local EGG_SPAWN_COUNT = 8
+local EARTH_POSITION = Vector3.new(3000, 1800, -4000)
+local EARTH_SIZE = 600
 
+-- Dark, thin-atmosphere Mars night sky: a visible starfield (via the Sky
+-- object's own procedural stars, no texture assets needed) with a distant
+-- blue "Earth" sphere, while keeping the ground lit enough to play by.
 local function setupAtmosphere()
-	Lighting.Ambient = Color3.fromRGB(70, 45, 35)
-	Lighting.OutdoorAmbient = Color3.fromRGB(130, 85, 65)
+	Lighting.ClockTime = 1
+	Lighting.Ambient = Color3.fromRGB(55, 45, 45)
+	Lighting.OutdoorAmbient = Color3.fromRGB(75, 55, 55)
 	Lighting.Brightness = 2
-	Lighting.ColorShift_Top = Color3.fromRGB(255, 150, 100)
-	Lighting.ColorShift_Bottom = Color3.fromRGB(120, 60, 40)
-	Lighting.FogColor = Color3.fromRGB(190, 120, 85)
+	Lighting.ColorShift_Top = Color3.fromRGB(120, 75, 65)
+	Lighting.ColorShift_Bottom = Color3.fromRGB(90, 55, 45)
+	Lighting.FogColor = Color3.fromRGB(55, 40, 40)
 	Lighting.FogStart = 150
-	Lighting.FogEnd = 1100
+	Lighting.FogEnd = 1300
+
+	local sky = Lighting:FindFirstChildOfClass("Sky")
+	if not sky then
+		sky = Instance.new("Sky")
+		sky.Name = "MarsSky"
+		sky.Parent = Lighting
+	end
+	sky.CelestialBodiesShown = true
+	sky.StarCount = 6000
 end
 
 local function createMarker(folder, name, position, size, color, canCollide)
@@ -76,9 +91,9 @@ local function createTerrainGround()
 		local distance = math.random() * ARENA_RADIUS * 0.9
 		local x = math.cos(angle) * distance
 		local z = math.sin(angle) * distance
-		local radius = math.random(12, 28)
+		local radius = math.random(16, 36)
 
-		terrain:FillBall(Vector3.new(x, -radius * 0.5, z), radius, Enum.Material.Air)
+		terrain:FillBall(Vector3.new(x, -radius * 0.65, z), radius, Enum.Material.Air)
 	end
 
 	for i = 1, MOUNTAIN_COUNT do
@@ -132,6 +147,23 @@ local function createEarthTeleport(folder, groundTopY, arenaRadius)
 	createMarker(folder, Config.Ship.EarthTeleportName, position, Vector3.new(16, 0.6, 16), Color3.fromRGB(90, 255, 140), true)
 end
 
+-- A big, distant sphere standing in for Earth, visible in the night sky as
+-- a reminder of where the ship is headed. No texture asset, just a colored
+-- Part far enough away that its size looks natural from anywhere on the map.
+local function createEarthInSky(folder)
+	local earth = Instance.new("Part")
+	earth.Name = "EarthInSky"
+	earth.Shape = Enum.PartType.Ball
+	earth.Size = Vector3.new(EARTH_SIZE, EARTH_SIZE, EARTH_SIZE)
+	earth.Position = EARTH_POSITION
+	earth.Anchored = true
+	earth.CanCollide = false
+	earth.CanQuery = false
+	earth.Material = Enum.Material.SmoothPlastic
+	earth.Color = Color3.fromRGB(70, 120, 200)
+	earth.Parent = folder
+end
+
 local function createSpawnLocation(folder, groundTopY)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "MarsSpawn"
@@ -165,6 +197,7 @@ function MapGenerator.Generate()
 	createShipBuildZone(folder, groundTopY)
 	createEarthTeleport(folder, groundTopY, ARENA_RADIUS)
 	createSpawnLocation(folder, groundTopY)
+	createEarthInSky(folder)
 
 	print("MapGenerator: base Mars map generated in Workspace." .. MAP_FOLDER_NAME .. ". Save the place to keep it, then decorate freely in Studio.")
 end
