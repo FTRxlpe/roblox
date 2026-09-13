@@ -61,6 +61,10 @@ end
 -- Y coordinate of the flat top surface everything else is placed on.
 local function createTerrainGround()
 	local terrain = Workspace.Terrain
+	-- Terrain lives outside the MarsMap folder, so deleting that folder to
+	-- force a regeneration would otherwise leave old ground/mountains behind
+	-- and stack a new set on top of them.
+	terrain:Clear()
 	terrain:SetMaterialColor(Enum.Material.Ground, GROUND_COLOR)
 	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(110, 55, 35))
 
