@@ -27,6 +27,7 @@ local GROUND_SIZE = Vector3.new(800, 16, 800)
 local GROUND_COLOR = Color3.fromRGB(150, 70, 40)
 local ARENA_RADIUS = 320
 local BOULDER_COUNT = 70
+local CRATER_COUNT = 14
 local MOUNTAIN_COUNT = 20
 local ALIEN_SPAWN_COUNT = 8
 local EGG_SPAWN_COUNT = 8
@@ -69,6 +70,16 @@ local function createTerrainGround()
 	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(110, 55, 35))
 
 	terrain:FillBlock(CFrame.new(0, -GROUND_SIZE.Y / 2, 0), GROUND_SIZE, Enum.Material.Ground)
+
+	for _ = 1, CRATER_COUNT do
+		local angle = math.random() * math.pi * 2
+		local distance = math.random() * ARENA_RADIUS * 0.9
+		local x = math.cos(angle) * distance
+		local z = math.sin(angle) * distance
+		local radius = math.random(12, 28)
+
+		terrain:FillBall(Vector3.new(x, -radius * 0.5, z), radius, Enum.Material.Air)
+	end
 
 	for i = 1, MOUNTAIN_COUNT do
 		local angle = (i - 1) / MOUNTAIN_COUNT * math.pi * 2 + math.random() * 0.2
