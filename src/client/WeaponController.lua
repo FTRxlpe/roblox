@@ -8,7 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Remotes"))
@@ -54,58 +54,40 @@ local function getMouseTargetHumanoid(range)
 	return nil
 end
 
--- Purely procedural swing (no Animation asset dependency, so it can't fail
--- to load): quickly rotates the shoulder joint forward and back, giving
--- visible feedback on every punch even when it doesn't land on anything.
-local function getShoulderMotor(character)
-	local rightUpperArm = character:FindFirstChild("RightUpperArm") -- R15
-	local rightShoulderR15 = rightUpperArm and rightUpperArm:FindFirstChild("RightShoulder")
-	if rightShoulderR15 then
-		return rightShoulderR15
+-- Rig joints (Motor6D.C0) turned out to be unreliable to animate by script
+-- in some contexts (Studio's split client/server test session refused
+-- writes to it outright). A screen flash needs no rig at all, so it can't
+-- fail the same way, and still gives clear feedback on every attack.
+local hitFlash
+
+local function getHitFlash()
+	if hitFlash then
+		return hitFlash
 	end
 
-	local torso = character:FindFirstChild("Torso") -- R6
-	return torso and torso:FindFirstChild("Right Shoulder")
+	local playerGui = player:WaitForChild("PlayerGui")
+
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "HitFlash"
+	screenGui.ResetOnSpawn = false
+	screenGui.IgnoreGuiInset = true
+	screenGui.Parent = playerGui
+
+	local flash = Instance.new("Frame")
+	flash.Size = UDim2.fromScale(1, 1)
+	flash.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	flash.BackgroundTransparency = 1
+	flash.ZIndex = 10
+	flash.Parent = screenGui
+
+	hitFlash = flash
+	return flash
 end
 
-local activeSwings = {}
-
--- Motor6D.C0 cannot be animated via TweenService (it's read-only there), so
--- this drives the swing by hand across Heartbeat frames instead.
-local function playPunchSwing(character)
-	local motor = getShoulderMotor(character)
-	if not motor or activeSwings[motor] then
-		return
-	end
-	activeSwings[motor] = true
-
-	local restC0 = motor.C0
-	local swingC0 = restC0 * CFrame.Angles(math.rad(-100), 0, 0)
-	local swingOutSeconds = 0.08
-	local swingBackSeconds = 0.14
-
-	local elapsed = 0
-	local swingingOut = true
-	local connection
-	connection = RunService.Heartbeat:Connect(function(deltaTime)
-		elapsed = elapsed + deltaTime
-
-		if swingingOut then
-			local alpha = math.clamp(elapsed / swingOutSeconds, 0, 1)
-			motor.C0 = restC0:Lerp(swingC0, alpha)
-			if alpha >= 1 then
-				swingingOut = false
-				elapsed = 0
-			end
-		else
-			local alpha = math.clamp(elapsed / swingBackSeconds, 0, 1)
-			motor.C0 = swingC0:Lerp(restC0, alpha)
-			if alpha >= 1 then
-				connection:Disconnect()
-				activeSwings[motor] = nil
-			end
-		end
-	end)
+local function playAttackFeedback()
+	local flash = getHitFlash()
+	flash.BackgroundTransparency = 0.75
+	TweenService:Create(flash, TweenInfo.new(0.15), { BackgroundTransparency = 1 }):Play()
 end
 
 local function hasToolEquipped()
@@ -122,6 +104,7 @@ local function onToolEquipped(remotes, tool)
 	tool.Activated:Connect(function()
 		local targetHumanoid = getMouseTargetHumanoid(range)
 		remotes.WeaponFire:FireServer(tool.Name, targetHumanoid)
+		playAttackFeedback()
 	end)
 end
 
@@ -150,11 +133,7 @@ local function initUnarmedPunch(remotes)
 
 		local targetHumanoid = getMouseTargetHumanoid(Config.Combat.UnarmedRange)
 		remotes.WeaponFire:FireServer(UNARMED_TOOL_NAME, targetHumanoid)
-
-		local character = player.Character
-		if character then
-			playPunchSwing(character)
-		end
+		playAttackFeedback()
 	end)
 end
 
