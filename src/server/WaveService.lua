@@ -47,7 +47,7 @@ local function spawnAlien(spawnPoint)
 	humanoid.Health = health
 
 	alien.Parent = Workspace
-	rootPart.CFrame = spawnPoint.CFrame + Vector3.new(0, 3, 0)
+	alien:PivotTo(spawnPoint.CFrame + Vector3.new(0, 3, 0))
 
 	local killReward = math.random(Config.Resources.MinPerAlienKill, Config.Resources.MaxPerAlienKill)
 	AlienAI.Setup(alien, killReward)
