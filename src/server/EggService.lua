@@ -19,7 +19,7 @@ local function getEggSpawnPoints()
 	local pattern = "^" .. Config.Eggs.SpawnNamePattern .. "%d+$"
 	local spawnPoints = {}
 
-	for _, child in ipairs(Workspace:GetChildren()) do
+	for _, child in ipairs(Workspace:GetDescendants()) do
 		if child:IsA("BasePart") and string.match(child.Name, pattern) then
 			table.insert(spawnPoints, child)
 		end
