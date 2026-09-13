@@ -23,15 +23,17 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local MapGenerator = {}
 
 local MAP_FOLDER_NAME = "MarsMap"
-local GROUND_SIZE = Vector3.new(800, 16, 800)
+local GROUND_SIZE = Vector3.new(800, 120, 800) -- thick enough that deep craters never punch through
 local GROUND_COLOR = Color3.fromRGB(150, 70, 40)
 local ARENA_RADIUS = 320
 local BOULDER_COUNT = 70
 local CRATER_COUNT = 22
+local LAVA_CRATER_FRACTION = 0.4 -- roughly this many craters get a glowing lava pool
 local MOUNTAIN_COUNT = 20
 local ALIEN_SPAWN_COUNT = 8
 local EGG_SPAWN_COUNT = 8
-local EARTH_POSITION = Vector3.new(3000, 1800, -4000)
+local TORCH_COUNT = 16
+local EARTH_POSITION = Vector3.new(1600, 950, -2200) -- within FogEnd so it stays visible
 local EARTH_SIZE = 600
 
 -- Dark, thin-atmosphere Mars night sky: a visible starfield (via the Sky
@@ -46,7 +48,7 @@ local function setupAtmosphere()
 	Lighting.ColorShift_Bottom = Color3.fromRGB(90, 55, 45)
 	Lighting.FogColor = Color3.fromRGB(55, 40, 40)
 	Lighting.FogStart = 150
-	Lighting.FogEnd = 1300
+	Lighting.FogEnd = 6000 -- far enough that the distant Earth sphere isn't fogged out
 
 	local sky = Lighting:FindFirstChildOfClass("Sky")
 	if not sky then
@@ -73,8 +75,10 @@ local function createMarker(folder, name, position, size, color, canCollide)
 end
 
 -- Flat terrain slab for the whole map, with a ring of rounded "mountains"
--- carved just outside the playable arena as a horizon backdrop. Returns the
--- Y coordinate of the flat top surface everything else is placed on.
+-- carved just outside the playable arena as a horizon backdrop, and a
+-- scatter of craters within it. Returns the Y coordinate of the flat top
+-- surface everything else is placed on, plus the list of craters generated
+-- (so a lava pool can be dropped into some of their bottoms afterward).
 local function createTerrainGround()
 	local terrain = Workspace.Terrain
 	-- Terrain lives outside the MarsMap folder, so deleting that folder to
@@ -86,14 +90,17 @@ local function createTerrainGround()
 
 	terrain:FillBlock(CFrame.new(0, -GROUND_SIZE.Y / 2, 0), GROUND_SIZE, Enum.Material.Ground)
 
+	local craters = {}
 	for _ = 1, CRATER_COUNT do
 		local angle = math.random() * math.pi * 2
 		local distance = math.random() * ARENA_RADIUS * 0.9
 		local x = math.cos(angle) * distance
 		local z = math.sin(angle) * distance
 		local radius = math.random(16, 36)
+		local depth = radius * 0.65
 
-		terrain:FillBall(Vector3.new(x, -radius * 0.65, z), radius, Enum.Material.Air)
+		terrain:FillBall(Vector3.new(x, -depth, z), radius, Enum.Material.Air)
+		table.insert(craters, { x = x, z = z, radius = radius, depth = depth })
 	end
 
 	for i = 1, MOUNTAIN_COUNT do
@@ -106,7 +113,7 @@ local function createTerrainGround()
 		terrain:FillBall(Vector3.new(x, radius * 0.6, z), radius, Enum.Material.Rock)
 	end
 
-	return 0
+	return 0, craters
 end
 
 local function scatterBoulders(folder, groundTopY, arenaRadius, count)
@@ -147,21 +154,99 @@ local function createEarthTeleport(folder, groundTopY, arenaRadius)
 	createMarker(folder, Config.Ship.EarthTeleportName, position, Vector3.new(16, 0.6, 16), Color3.fromRGB(90, 255, 140), true)
 end
 
--- A big, distant sphere standing in for Earth, visible in the night sky as
--- a reminder of where the ship is headed. No texture asset, just a colored
--- Part far enough away that its size looks natural from anywhere on the map.
-local function createEarthInSky(folder)
-	local earth = Instance.new("Part")
-	earth.Name = "EarthInSky"
-	earth.Shape = Enum.PartType.Ball
-	earth.Size = Vector3.new(EARTH_SIZE, EARTH_SIZE, EARTH_SIZE)
-	earth.Position = EARTH_POSITION
-	earth.Anchored = true
-	earth.CanCollide = false
-	earth.CanQuery = false
-	earth.Material = Enum.Material.SmoothPlastic
-	earth.Color = Color3.fromRGB(70, 120, 200)
-	earth.Parent = folder
+-- A distant sphere standing in for a celestial body. No texture asset, just
+-- a colored Part far enough away (but within FogEnd) that it reads as a
+-- background object rather than getting fogged out.
+local function createSkyBody(folder, name, position, size, color)
+	local body = Instance.new("Part")
+	body.Name = name
+	body.Shape = Enum.PartType.Ball
+	body.Size = Vector3.new(size, size, size)
+	body.Position = position
+	body.Anchored = true
+	body.CanCollide = false
+	body.CanQuery = false
+	body.Material = Enum.Material.SmoothPlastic
+	body.Color = color
+	body.Parent = folder
+end
+
+-- Approximates what's actually visible from Mars: Earth (as a small blue
+-- "star"), its own moons Phobos and Deimos (much closer, so they look
+-- bigger and move faster across the sky), and Jupiter as a bright dot.
+local function createSkyBodies(folder)
+	createSkyBody(folder, "EarthInSky", EARTH_POSITION, EARTH_SIZE, Color3.fromRGB(70, 120, 200))
+	createSkyBody(folder, "Phobos", Vector3.new(500, 350, -650), 40, Color3.fromRGB(120, 110, 100))
+	createSkyBody(folder, "Deimos", Vector3.new(-700, 300, -500), 22, Color3.fromRGB(140, 130, 120))
+	createSkyBody(folder, "Jupiter", Vector3.new(-2200, 1300, 2600), 900, Color3.fromRGB(210, 170, 120))
+end
+
+-- Drops a glowing lava pool into a subset of the given craters, each with
+-- its own light so it actually illuminates the surrounding dark scene.
+local function scatterLavaPools(folder, craters, groundTopY)
+	for _, crater in ipairs(craters) do
+		if math.random() <= LAVA_CRATER_FRACTION then
+			local poolRadius = crater.radius * 0.7
+
+			local lava = Instance.new("Part")
+			lava.Name = "LavaPool"
+			lava.Shape = Enum.PartType.Cylinder
+			lava.Size = Vector3.new(1, poolRadius * 2, poolRadius * 2)
+			local bottomY = groundTopY - (crater.depth + crater.radius) + 0.5
+			lava.CFrame = CFrame.new(crater.x, bottomY, crater.z) * CFrame.Angles(0, 0, math.rad(90))
+			lava.Anchored = true
+			lava.CanCollide = false
+			lava.Material = Enum.Material.Neon
+			lava.Color = Color3.fromRGB(255, 90, 20)
+			lava.Parent = folder
+
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(255, 120, 40)
+			light.Range = poolRadius * 4
+			light.Brightness = 3
+			light.Parent = lava
+		end
+	end
+end
+
+-- A simple sci-fi beacon: a dark pole topped with a glowing orb that also
+-- casts real light, scattered around the arena so the dark night sky
+-- doesn't leave the ground unreadable.
+local function scatterTorches(folder, groundTopY, arenaRadius, count)
+	for i = 1, count do
+		local angle = (i - 1) / count * math.pi * 2 + math.pi / count
+		local distance = arenaRadius * (0.35 + math.random() * 0.5)
+		local x = math.cos(angle) * distance
+		local z = math.sin(angle) * distance
+		local poleHeight = 8
+
+		local pole = Instance.new("Part")
+		pole.Name = "Torch"
+		pole.Size = Vector3.new(1, poleHeight, 1)
+		pole.Position = Vector3.new(x, groundTopY + poleHeight / 2, z)
+		pole.Anchored = true
+		pole.CanCollide = true
+		pole.Material = Enum.Material.Metal
+		pole.Color = Color3.fromRGB(60, 60, 65)
+		pole.Parent = folder
+
+		local orb = Instance.new("Part")
+		orb.Name = "TorchLight"
+		orb.Shape = Enum.PartType.Ball
+		orb.Size = Vector3.new(1.6, 1.6, 1.6)
+		orb.Position = pole.Position + Vector3.new(0, poleHeight / 2 + 0.5, 0)
+		orb.Anchored = true
+		orb.CanCollide = false
+		orb.Material = Enum.Material.Neon
+		orb.Color = Color3.fromRGB(90, 220, 255)
+		orb.Parent = folder
+
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(120, 220, 255)
+		light.Range = 30
+		light.Brightness = 2.5
+		light.Parent = orb
+	end
 end
 
 local function createSpawnLocation(folder, groundTopY)
@@ -189,15 +274,17 @@ function MapGenerator.Generate()
 	folder.Name = MAP_FOLDER_NAME
 	folder.Parent = Workspace
 
-	local groundTopY = createTerrainGround()
+	local groundTopY, craters = createTerrainGround()
 
 	scatterBoulders(folder, groundTopY, ARENA_RADIUS, BOULDER_COUNT)
+	scatterLavaPools(folder, craters, groundTopY)
+	scatterTorches(folder, groundTopY, ARENA_RADIUS, TORCH_COUNT)
 	createSpawnRing(folder, Config.Waves.SpawnNamePattern, ALIEN_SPAWN_COUNT, ARENA_RADIUS * 0.75, groundTopY, Color3.fromRGB(255, 70, 70))
 	createSpawnRing(folder, Config.Eggs.SpawnNamePattern, EGG_SPAWN_COUNT, ARENA_RADIUS * 0.4, groundTopY, Color3.fromRGB(120, 230, 140))
 	createShipBuildZone(folder, groundTopY)
 	createEarthTeleport(folder, groundTopY, ARENA_RADIUS)
 	createSpawnLocation(folder, groundTopY)
-	createEarthInSky(folder)
+	createSkyBodies(folder)
 
 	print("MapGenerator: base Mars map generated in Workspace." .. MAP_FOLDER_NAME .. ". Save the place to keep it, then decorate freely in Studio.")
 end
