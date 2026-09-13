@@ -80,6 +80,9 @@ function AlienAI.Setup(alien, killReward)
 	end
 
 	humanoid.WalkSpeed = Config.Waves.AlienWalkSpeed
+	-- Some free rig models ship with this off; force it on so hits are
+	-- visibly registering to the player.
+	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
 
 	startChaseLoop(alien, humanoid, rootPart)
 	startTouchDamage(alien, humanoid, rootPart)
