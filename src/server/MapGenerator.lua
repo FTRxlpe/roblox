@@ -1,6 +1,7 @@
 -- One-shot utility that builds a basic Mars map directly in Workspace:
--- a ground plate, scattered boulders, AlienSpawnN / EggSpawnN markers,
--- ShipBuildZone and EarthTeleport pads, and a player SpawnLocation.
+-- a terrain ground plate with a mountain backdrop, scattered boulders,
+-- AlienSpawnN / EggSpawnN markers, ShipBuildZone and EarthTeleport pads,
+-- a player SpawnLocation, and a warm Mars atmosphere/lighting setup.
 --
 -- This is NOT wired into Main.server.lua on purpose: run it once from the
 -- Studio Command Bar while in EDIT mode (not Play), so the result gets
@@ -9,10 +10,12 @@
 --
 --   require(game.ServerScriptService.MapGenerator).Generate()
 --
--- Running it again is safe: it skips generation if Workspace.MarsMap
--- already exists instead of duplicating everything.
+-- Running it again is safe: it skips the ground/props/markers if
+-- Workspace.MarsMap already exists instead of duplicating everything,
+-- though the lighting/atmosphere setup is reapplied every time.
 
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
@@ -20,12 +23,24 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local MapGenerator = {}
 
 local MAP_FOLDER_NAME = "MarsMap"
-local GROUND_SIZE = Vector3.new(400, 4, 400)
+local GROUND_SIZE = Vector3.new(400, 16, 400)
 local GROUND_COLOR = Color3.fromRGB(150, 70, 40)
 local ARENA_RADIUS = 160
 local BOULDER_COUNT = 40
+local MOUNTAIN_COUNT = 14
 local ALIEN_SPAWN_COUNT = 6
 local EGG_SPAWN_COUNT = 6
+
+local function setupAtmosphere()
+	Lighting.Ambient = Color3.fromRGB(70, 45, 35)
+	Lighting.OutdoorAmbient = Color3.fromRGB(130, 85, 65)
+	Lighting.Brightness = 2
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 150, 100)
+	Lighting.ColorShift_Bottom = Color3.fromRGB(120, 60, 40)
+	Lighting.FogColor = Color3.fromRGB(190, 120, 85)
+	Lighting.FogStart = 150
+	Lighting.FogEnd = 1100
+end
 
 local function createMarker(folder, name, position, size, color, canCollide)
 	local marker = Instance.new("Part")
@@ -41,17 +56,27 @@ local function createMarker(folder, name, position, size, color, canCollide)
 	return marker
 end
 
-local function createGround(folder)
-	local ground = Instance.new("Part")
-	ground.Name = "MarsGround"
-	ground.Size = GROUND_SIZE
-	ground.Position = Vector3.new(0, 0, 0)
-	ground.Anchored = true
-	ground.CanCollide = true
-	ground.Material = Enum.Material.Ground
-	ground.Color = GROUND_COLOR
-	ground.Parent = folder
-	return ground
+-- Flat terrain slab for the whole map, with a ring of rounded "mountains"
+-- carved just outside the playable arena as a horizon backdrop. Returns the
+-- Y coordinate of the flat top surface everything else is placed on.
+local function createTerrainGround()
+	local terrain = Workspace.Terrain
+	terrain:SetMaterialColor(Enum.Material.Ground, GROUND_COLOR)
+	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(110, 55, 35))
+
+	terrain:FillBlock(CFrame.new(0, -GROUND_SIZE.Y / 2, 0), GROUND_SIZE, Enum.Material.Ground)
+
+	for i = 1, MOUNTAIN_COUNT do
+		local angle = (i - 1) / MOUNTAIN_COUNT * math.pi * 2 + math.random() * 0.2
+		local distance = ARENA_RADIUS + 20 + math.random(0, 20)
+		local x = math.cos(angle) * distance
+		local z = math.sin(angle) * distance
+		local radius = math.random(35, 60)
+
+		terrain:FillBall(Vector3.new(x, radius * 0.6, z), radius, Enum.Material.Rock)
+	end
+
+	return 0
 end
 
 local function scatterBoulders(folder, groundTopY, arenaRadius, count)
@@ -106,8 +131,10 @@ local function createSpawnLocation(folder, groundTopY)
 end
 
 function MapGenerator.Generate()
+	setupAtmosphere()
+
 	if Workspace:FindFirstChild(MAP_FOLDER_NAME) then
-		warn("MapGenerator: '" .. MAP_FOLDER_NAME .. "' already exists in Workspace, skipping. Delete it first if you really want to regenerate.")
+		warn("MapGenerator: '" .. MAP_FOLDER_NAME .. "' already exists in Workspace, skipping ground/props. Delete it first if you want to regenerate those.")
 		return
 	end
 
@@ -115,8 +142,7 @@ function MapGenerator.Generate()
 	folder.Name = MAP_FOLDER_NAME
 	folder.Parent = Workspace
 
-	local ground = createGround(folder)
-	local groundTopY = ground.Position.Y + ground.Size.Y / 2
+	local groundTopY = createTerrainGround()
 
 	scatterBoulders(folder, groundTopY, ARENA_RADIUS, BOULDER_COUNT)
 	createSpawnRing(folder, Config.Waves.SpawnNamePattern, ALIEN_SPAWN_COUNT, ARENA_RADIUS * 0.75, groundTopY, Color3.fromRGB(255, 70, 70))
