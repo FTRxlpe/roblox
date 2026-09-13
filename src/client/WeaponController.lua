@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Remotes"))
@@ -53,6 +54,45 @@ local function getMouseTargetHumanoid(range)
 	return nil
 end
 
+-- Purely procedural swing (no Animation asset dependency, so it can't fail
+-- to load): quickly rotates the shoulder joint forward and back, giving
+-- visible feedback on every punch even when it doesn't land on anything.
+local function getShoulderMotor(character)
+	local rightUpperArm = character:FindFirstChild("RightUpperArm") -- R15
+	local rightShoulderR15 = rightUpperArm and rightUpperArm:FindFirstChild("RightShoulder")
+	if rightShoulderR15 then
+		return rightShoulderR15
+	end
+
+	local torso = character:FindFirstChild("Torso") -- R6
+	return torso and torso:FindFirstChild("Right Shoulder")
+end
+
+local activeSwings = {}
+
+local function playPunchSwing(character)
+	local motor = getShoulderMotor(character)
+	if not motor or activeSwings[motor] then
+		return
+	end
+	activeSwings[motor] = true
+
+	local restC0 = motor.C0
+	local swingC0 = restC0 * CFrame.Angles(math.rad(-100), 0, 0)
+
+	local swingOut = TweenService:Create(motor, TweenInfo.new(0.08, Enum.EasingStyle.Quad), { C0 = swingC0 })
+	local swingBack = TweenService:Create(motor, TweenInfo.new(0.14, Enum.EasingStyle.Quad), { C0 = restC0 })
+
+	swingOut.Completed:Once(function()
+		swingBack:Play()
+	end)
+	swingBack.Completed:Once(function()
+		activeSwings[motor] = nil
+	end)
+
+	swingOut:Play()
+end
+
 local function hasToolEquipped()
 	local character = player.Character
 	return character ~= nil and character:FindFirstChildOfClass("Tool") ~= nil
@@ -91,6 +131,11 @@ local function initUnarmedPunch(remotes)
 		end
 		if hasToolEquipped() then
 			return -- an equipped weapon's own Activated handler covers this click
+		end
+
+		local character = player.Character
+		if character then
+			playPunchSwing(character)
 		end
 
 		local targetHumanoid = getMouseTargetHumanoid(Config.Combat.UnarmedRange)
