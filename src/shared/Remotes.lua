@@ -8,6 +8,7 @@ local REMOTE_NAMES = {
 	"ShopPurchaseResult", -- server -> client: { success, itemId, message }
 	"ShipProgressUpdated", -- server -> client: { current, required }
 	"ShipVictory", -- server -> client: no payload
+	"WeaponFire", -- client -> server: toolName, targetHumanoid (or nil on a miss)
 }
 
 local Remotes = {}

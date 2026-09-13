@@ -41,8 +41,8 @@ Config.PvP = {
 
 Config.Shop = {
 	Items = {
-		{ Id = "BasicBlaster", Name = "Basic Blaster", Type = "Weapon", Price = 50, ToolName = "BasicBlaster" },
-		{ Id = "PlasmaRifle", Name = "Plasma Rifle", Type = "Weapon", Price = 200, ToolName = "PlasmaRifle" },
+		{ Id = "BasicBlaster", Name = "Basic Blaster", Type = "Weapon", Price = 50, ToolName = "BasicBlaster", Damage = 15, Range = 40 },
+		{ Id = "PlasmaRifle", Name = "Plasma Rifle", Type = "Weapon", Price = 200, ToolName = "PlasmaRifle", Damage = 35, Range = 60 },
 		{ Id = "SmallMaterialPack", Name = "Small Materials Pack", Type = "MaterialPack", Price = 30, MaterialsAmount = 20 },
 		{ Id = "LargeMaterialPack", Name = "Large Materials Pack", Type = "MaterialPack", Price = 100, MaterialsAmount = 80 },
 	},
