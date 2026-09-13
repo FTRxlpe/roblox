@@ -28,7 +28,6 @@ local GROUND_COLOR = Color3.fromRGB(150, 70, 40)
 local ARENA_RADIUS = 320
 local BOULDER_COUNT = 70
 local CRATER_COUNT = 22
-local LAVA_CRATER_FRACTION = 1 -- every crater gets a glowing lava pool at its bottom
 local MOUNTAIN_COUNT = 20
 local ALIEN_SPAWN_COUNT = 8
 local EGG_SPAWN_COUNT = 8
@@ -181,31 +180,24 @@ local function createSkyBodies(folder)
 	createSkyBody(folder, "Jupiter", Vector3.new(-2200, 1300, 2600), 900, Color3.fromRGB(230, 190, 140))
 end
 
--- Drops a glowing lava pool into a subset of the given craters, each with
--- its own light so it actually illuminates the surrounding dark scene.
-local function scatterLavaPools(folder, craters, groundTopY)
+-- Gives every crater a distinct dark floor instead of leaving the same
+-- ground material exposed at the bottom (which just looked like a hole
+-- revealing more of the same ground). Plain, non-glowing.
+local function paintCraterFloors(folder, craters, groundTopY)
 	for _, crater in ipairs(craters) do
-		if math.random() <= LAVA_CRATER_FRACTION then
-			local poolRadius = crater.radius * 0.7
+		local floorRadius = crater.radius * 0.7
 
-			local lava = Instance.new("Part")
-			lava.Name = "LavaPool"
-			lava.Shape = Enum.PartType.Cylinder
-			lava.Size = Vector3.new(1, poolRadius * 2, poolRadius * 2)
-			local bottomY = groundTopY - (crater.depth + crater.radius) + 0.5
-			lava.CFrame = CFrame.new(crater.x, bottomY, crater.z) * CFrame.Angles(0, 0, math.rad(90))
-			lava.Anchored = true
-			lava.CanCollide = false
-			lava.Material = Enum.Material.Neon
-			lava.Color = Color3.fromRGB(255, 90, 20)
-			lava.Parent = folder
-
-			local light = Instance.new("PointLight")
-			light.Color = Color3.fromRGB(255, 120, 40)
-			light.Range = poolRadius * 4
-			light.Brightness = 3
-			light.Parent = lava
-		end
+		local floor = Instance.new("Part")
+		floor.Name = "CraterFloor"
+		floor.Shape = Enum.PartType.Cylinder
+		floor.Size = Vector3.new(1, floorRadius * 2, floorRadius * 2)
+		local bottomY = groundTopY - (crater.depth + crater.radius) + 0.5
+		floor.CFrame = CFrame.new(crater.x, bottomY, crater.z) * CFrame.Angles(0, 0, math.rad(90))
+		floor.Anchored = true
+		floor.CanCollide = false
+		floor.Material = Enum.Material.Slate
+		floor.Color = Color3.fromRGB(55, 45, 40)
+		floor.Parent = folder
 	end
 end
 
@@ -277,7 +269,7 @@ function MapGenerator.Generate()
 	local groundTopY, craters = createTerrainGround()
 
 	scatterBoulders(folder, groundTopY, ARENA_RADIUS, BOULDER_COUNT)
-	scatterLavaPools(folder, craters, groundTopY)
+	paintCraterFloors(folder, craters, groundTopY)
 	scatterTorches(folder, groundTopY, ARENA_RADIUS, TORCH_COUNT)
 	createSpawnRing(folder, Config.Waves.SpawnNamePattern, ALIEN_SPAWN_COUNT, ARENA_RADIUS * 0.75, groundTopY, Color3.fromRGB(255, 70, 70))
 	createSpawnRing(folder, Config.Eggs.SpawnNamePattern, EGG_SPAWN_COUNT, ARENA_RADIUS * 0.4, groundTopY, Color3.fromRGB(120, 230, 140))
