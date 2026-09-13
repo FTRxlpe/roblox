@@ -29,6 +29,47 @@ la Terre.
 5. Le contenu de `src/` apparaît dans l'explorateur Studio. Toute
    modification de fichier en local est synchronisée automatiquement.
 
+## Workflow GitHub ↔ Rojo ↔ Studio pour créer/éditer la map
+
+Claude Code ne peut écrire que du texte (scripts, config) : la géométrie
+3D de la map se construit dans Roblox Studio. Rojo, par défaut, ne
+synchronise **pas** `Workspace` (seulement `src/server`, `src/client`,
+`src/shared`), donc la map n'est pas versionnée dans ce dépôt — elle vit
+dans ton fichier de lieu Studio (`.rbxl`, ignoré par Git) ou sur
+Roblox Cloud une fois publiée.
+
+Étapes :
+
+1. `git clone` ce dépôt, puis `rojo serve` à sa racine.
+2. Dans Roblox Studio : créer/ouvrir un lieu, ouvrir le plugin Rojo,
+   **Connect**. Tout le code (`ServerScriptService`, `StarterPlayerScripts`,
+   `ReplicatedStorage`) apparaît et se synchronise automatiquement à
+   chaque modification du repo.
+3. Générer une base de map en une fois : ouvrir la **Command Bar**
+   (View > Command Bar) **en mode Édition, pas en Play**, et exécuter :
+
+   ```lua
+   require(game.ServerScriptService.MapGenerator).Generate()
+   ```
+
+   Cela crée un dossier `Workspace.MarsMap` avec un sol Mars, des rochers,
+   les points `AlienSpawn1..6`, `EggSpawn1..6`, `ShipBuildZone`,
+   `EarthTeleport` et un `SpawnLocation` joueur — tout est déjà nommé
+   correctement pour que le code serveur les trouve.
+4. **Sauvegarder le lieu** (Ctrl+S ou Publish) : c'est ce qui rend la map
+   permanente. Si tu génères pendant une session **Play/Play Solo**, tout
+   est perdu à l'arrêt du test — Studio annule les changements de
+   Workspace faits en Play, exécute donc bien l'étape 3 en mode Édition.
+5. Décore ensuite librement à la main dans Studio (terrain, décor,
+   modèles du marketplace, déplacer les spawn points...) : `MapGenerator`
+   ne touche plus à rien tant que `Workspace.MarsMap` existe déjà (relance
+   sans risque, elle s'arrête si le dossier est présent).
+6. Pour les modèles `AlienNPC`, `AlienEgg` et les armes (voir tableau
+   ci-dessous), les créer aussi à la main dans `ServerStorage`.
+7. Une fois satisfait, **Publish to Roblox** depuis Studio pour mettre le
+   jeu en ligne. Le code continue d'évoluer via GitHub + `rojo serve`,
+   la map reste gérée côté Studio/Roblox Cloud.
+
 ## Assets à créer dans Roblox Studio (non versionnés en code)
 
 Ces éléments doivent être créés manuellement dans Studio car ce sont des
