@@ -8,7 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Remotes = require(ReplicatedStorage:WaitForChild("Remotes"))
@@ -70,6 +70,8 @@ end
 
 local activeSwings = {}
 
+-- Motor6D.C0 cannot be animated via TweenService (it's read-only there), so
+-- this drives the swing by hand across Heartbeat frames instead.
 local function playPunchSwing(character)
 	local motor = getShoulderMotor(character)
 	if not motor or activeSwings[motor] then
@@ -79,18 +81,31 @@ local function playPunchSwing(character)
 
 	local restC0 = motor.C0
 	local swingC0 = restC0 * CFrame.Angles(math.rad(-100), 0, 0)
+	local swingOutSeconds = 0.08
+	local swingBackSeconds = 0.14
 
-	local swingOut = TweenService:Create(motor, TweenInfo.new(0.08, Enum.EasingStyle.Quad), { C0 = swingC0 })
-	local swingBack = TweenService:Create(motor, TweenInfo.new(0.14, Enum.EasingStyle.Quad), { C0 = restC0 })
+	local elapsed = 0
+	local swingingOut = true
+	local connection
+	connection = RunService.Heartbeat:Connect(function(deltaTime)
+		elapsed = elapsed + deltaTime
 
-	swingOut.Completed:Once(function()
-		swingBack:Play()
+		if swingingOut then
+			local alpha = math.clamp(elapsed / swingOutSeconds, 0, 1)
+			motor.C0 = restC0:Lerp(swingC0, alpha)
+			if alpha >= 1 then
+				swingingOut = false
+				elapsed = 0
+			end
+		else
+			local alpha = math.clamp(elapsed / swingBackSeconds, 0, 1)
+			motor.C0 = swingC0:Lerp(restC0, alpha)
+			if alpha >= 1 then
+				connection:Disconnect()
+				activeSwings[motor] = nil
+			end
+		end
 	end)
-	swingBack.Completed:Once(function()
-		activeSwings[motor] = nil
-	end)
-
-	swingOut:Play()
 end
 
 local function hasToolEquipped()
@@ -133,13 +148,13 @@ local function initUnarmedPunch(remotes)
 			return -- an equipped weapon's own Activated handler covers this click
 		end
 
+		local targetHumanoid = getMouseTargetHumanoid(Config.Combat.UnarmedRange)
+		remotes.WeaponFire:FireServer(UNARMED_TOOL_NAME, targetHumanoid)
+
 		local character = player.Character
 		if character then
 			playPunchSwing(character)
 		end
-
-		local targetHumanoid = getMouseTargetHumanoid(Config.Combat.UnarmedRange)
-		remotes.WeaponFire:FireServer(UNARMED_TOOL_NAME, targetHumanoid)
 	end)
 end
 
