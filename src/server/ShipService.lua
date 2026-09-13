@@ -32,7 +32,7 @@ local function triggerVictory(remotes)
 
 	remotes.ShipVictory:FireAllClients()
 
-	local earthTeleport = Workspace:FindFirstChild(Config.Ship.EarthTeleportName)
+	local earthTeleport = Workspace:FindFirstChild(Config.Ship.EarthTeleportName, true)
 	if not earthTeleport then
 		warn(string.format("ShipService: '%s' part not found in Workspace", Config.Ship.EarthTeleportName))
 		return
@@ -77,7 +77,7 @@ end
 function ShipService.Init()
 	local remotes = Remotes.Get()
 
-	local buildZone = Workspace:FindFirstChild(Config.Ship.BuildZoneName)
+	local buildZone = Workspace:FindFirstChild(Config.Ship.BuildZoneName, true)
 	if not buildZone then
 		warn(string.format("ShipService: '%s' part not found in Workspace", Config.Ship.BuildZoneName))
 		return
