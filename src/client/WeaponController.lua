@@ -54,6 +54,37 @@ local function getMouseTargetHumanoid(range)
 	return nil
 end
 
+-- Melee range is short enough that a camera raycast never works: the camera
+-- sits well behind the character in third person, so most (or all) of the
+-- ray gets spent just closing that gap before it could ever reach a target
+-- in front of the player. Proximity around the character's own root part is
+-- what an actual punch needs.
+local function getNearestHumanoidInRange(range)
+	local character = player.Character
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	local ownHumanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not rootPart then
+		return nil
+	end
+
+	local nearestHumanoid, nearestDistance = nil, range
+
+	for _, descendant in ipairs(Workspace:GetDescendants()) do
+		if descendant:IsA("Humanoid") and descendant ~= ownHumanoid and descendant.Health > 0 then
+			local targetRoot = descendant.Parent and descendant.Parent:FindFirstChild("HumanoidRootPart")
+			if targetRoot then
+				local distance = (targetRoot.Position - rootPart.Position).Magnitude
+				if distance <= nearestDistance then
+					nearestHumanoid = descendant
+					nearestDistance = distance
+				end
+			end
+		end
+	end
+
+	return nearestHumanoid
+end
+
 -- Rig joints (Motor6D.C0) turned out to be unreliable to animate by script
 -- in some contexts (Studio's split client/server test session refused
 -- writes to it outright). A screen flash needs no rig at all, so it can't
@@ -131,7 +162,7 @@ local function initUnarmedPunch(remotes)
 			return -- an equipped weapon's own Activated handler covers this click
 		end
 
-		local targetHumanoid = getMouseTargetHumanoid(Config.Combat.UnarmedRange)
+		local targetHumanoid = getNearestHumanoidInRange(Config.Combat.UnarmedRange)
 		remotes.WeaponFire:FireServer(UNARMED_TOOL_NAME, targetHumanoid)
 		playAttackFeedback()
 	end)
