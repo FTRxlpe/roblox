@@ -46,6 +46,12 @@ local function spawnAlien(spawnPoint)
 	humanoid.MaxHealth = health
 	humanoid.Health = health
 
+	for _, descendant in ipairs(alien:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = false
+		end
+	end
+
 	alien.Parent = Workspace
 	alien:PivotTo(spawnPoint.CFrame + Vector3.new(0, 3, 0))
 
