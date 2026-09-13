@@ -2,7 +2,12 @@
 -- everything before applying damage):
 --   - A left click while no weapon Tool is equipped is a free punch.
 --   - Activating a shop-bought weapon Tool fires that weapon instead.
--- Both raycast from the mouse to find a target humanoid.
+-- Both target the nearest humanoid within range of the character, rather
+-- than raycasting from the camera: the camera sits well behind the
+-- character in third person, so a chunk of any camera-based ray gets spent
+-- just closing that gap before it could ever reach a target in front of the
+-- player, and how much varies with zoom. Proximity to the character's own
+-- root part works regardless of camera distance or angle.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,39 +31,6 @@ for _, item in ipairs(Config.Shop.Items) do
 	end
 end
 
-local function getMouseTargetHumanoid(range)
-	local character = player.Character
-	local camera = Workspace.CurrentCamera
-	local mouse = player:GetMouse()
-	if not character or not camera then
-		return nil
-	end
-
-	local unitRay = camera:ScreenPointToRay(mouse.X, mouse.Y)
-
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = { character }
-
-	local result = Workspace:Raycast(unitRay.Origin, unitRay.Direction * range, raycastParams)
-	if not result or not result.Instance then
-		return nil
-	end
-
-	local hitCharacter = result.Instance.Parent
-	local humanoid = hitCharacter and hitCharacter:FindFirstChildOfClass("Humanoid")
-	if humanoid and humanoid.Health > 0 then
-		return humanoid
-	end
-
-	return nil
-end
-
--- Melee range is short enough that a camera raycast never works: the camera
--- sits well behind the character in third person, so most (or all) of the
--- ray gets spent just closing that gap before it could ever reach a target
--- in front of the player. Proximity around the character's own root part is
--- what an actual punch needs.
 local function getNearestHumanoidInRange(range)
 	local character = player.Character
 	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
@@ -133,7 +105,7 @@ local function onToolEquipped(remotes, tool)
 	end
 
 	tool.Activated:Connect(function()
-		local targetHumanoid = getMouseTargetHumanoid(range)
+		local targetHumanoid = getNearestHumanoidInRange(range)
 		remotes.WeaponFire:FireServer(tool.Name, targetHumanoid)
 		playAttackFeedback()
 	end)
