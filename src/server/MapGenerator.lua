@@ -28,7 +28,7 @@ local GROUND_COLOR = Color3.fromRGB(150, 70, 40)
 local ARENA_RADIUS = 320
 local BOULDER_COUNT = 70
 local CRATER_COUNT = 22
-local LAVA_CRATER_FRACTION = 0.4 -- roughly this many craters get a glowing lava pool
+local LAVA_CRATER_FRACTION = 1 -- every crater gets a glowing lava pool at its bottom
 local MOUNTAIN_COUNT = 20
 local ALIEN_SPAWN_COUNT = 8
 local EGG_SPAWN_COUNT = 8
@@ -166,7 +166,7 @@ local function createSkyBody(folder, name, position, size, color)
 	body.Anchored = true
 	body.CanCollide = false
 	body.CanQuery = false
-	body.Material = Enum.Material.SmoothPlastic
+	body.Material = Enum.Material.Neon -- self-lit, so it stays visible against the dark night sky
 	body.Color = color
 	body.Parent = folder
 end
@@ -175,10 +175,10 @@ end
 -- "star"), its own moons Phobos and Deimos (much closer, so they look
 -- bigger and move faster across the sky), and Jupiter as a bright dot.
 local function createSkyBodies(folder)
-	createSkyBody(folder, "EarthInSky", EARTH_POSITION, EARTH_SIZE, Color3.fromRGB(70, 120, 200))
-	createSkyBody(folder, "Phobos", Vector3.new(500, 350, -650), 40, Color3.fromRGB(120, 110, 100))
-	createSkyBody(folder, "Deimos", Vector3.new(-700, 300, -500), 22, Color3.fromRGB(140, 130, 120))
-	createSkyBody(folder, "Jupiter", Vector3.new(-2200, 1300, 2600), 900, Color3.fromRGB(210, 170, 120))
+	createSkyBody(folder, "EarthInSky", EARTH_POSITION, EARTH_SIZE, Color3.fromRGB(60, 140, 170))
+	createSkyBody(folder, "Phobos", Vector3.new(500, 350, -650), 40, Color3.fromRGB(210, 205, 195))
+	createSkyBody(folder, "Deimos", Vector3.new(-700, 300, -500), 22, Color3.fromRGB(220, 215, 205))
+	createSkyBody(folder, "Jupiter", Vector3.new(-2200, 1300, 2600), 900, Color3.fromRGB(230, 190, 140))
 end
 
 -- Drops a glowing lava pool into a subset of the given craters, each with
